@@ -206,48 +206,87 @@ require_once ASTRA_THEME_DIR . 'inc/core/deprecated/deprecated-filters.php';
 require_once ASTRA_THEME_DIR . 'inc/core/deprecated/deprecated-hooks.php';
 require_once ASTRA_THEME_DIR . 'inc/core/deprecated/deprecated-functions.php';
 
-add_action('init', function () {
-	register_post_type('jobs', array(
-		'labels' => array(
-			'name' => 'Jobs',
-			'singular_name' => 'jobs',
-			'menu_name' => 'Jobs',
-			'all_items' => 'All Jobs',
-			'edit_item' => 'Edit jobs',
-			'view_item' => 'View jobs',
-			'view_items' => 'View Jobs',
-			'add_new_item' => 'Add New jobs',
-			'add_new' => 'Add New jobs',
-			'new_item' => 'New jobs',
-			'parent_item_colon' => 'Parent jobs:',
-			'search_items' => 'Search Jobs',
-			'not_found' => 'No jobs found',
-			'not_found_in_trash' => 'No jobs found in Trash',
-			'archives' => 'jobs Archives',
-			'attributes' => 'jobs Attributes',
-			'insert_into_item' => 'Insert into jobs',
-			'uploaded_to_this_item' => 'Uploaded to this jobs',
-			'filter_items_list' => 'Filter jobs list',
-			'filter_by_date' => 'Filter jobs by date',
-			'items_list_navigation' => 'Jobs list navigation',
-			'items_list' => 'Jobs list',
-			'item_published' => 'jobs published.',
-			'item_published_privately' => 'jobs published privately.',
-			'item_reverted_to_draft' => 'jobs reverted to draft.',
-			'item_scheduled' => 'jobs scheduled.',
-			'item_updated' => 'jobs updated.',
-			'item_link' => 'jobs Link',
-			'item_link_description' => 'A link to a jobs.',
-		),
-		'public' => true,
-		'show_in_rest' => true,
-		'menu_icon' => 'dashicons-admin-post',
-		'supports' => array(
-			0 => 'title',
-			1 => 'editor',
-			2 => 'thumbnail',
-			3 => 'custom-fields',
-		),
-		'delete_with_user' => false,
-	));
-});
+/**
+ * Registers a custom post type 'jobs'.
+ *
+ * @since 1.0.0
+ *
+ * @return void
+ */
+
+// Register Custom Post Type: Jobs
+function create_jobs_post_type() {
+    $labels = array(
+        'name'               => 'Jobs',
+        'singular_name'      => 'Job',
+        'menu_name'          => 'Jobs',
+        'add_new'            => 'Add New Job',
+        'add_new_item'       => 'Add New Job',
+        'edit_item'          => 'Edit Job',
+        'new_item'           => 'New Job',
+        'view_item'          => 'View Job',
+        'search_items'       => 'Search Jobs',
+        'not_found'          => 'No jobs found',
+        'not_found_in_trash' => 'No jobs found in trash',
+    );
+
+    $args = array(
+        'labels'             => $labels,
+        'public'             => true,
+        'has_archive'        => true,
+        'menu_icon'          => 'dashicons-businessman',
+        'supports'           => array('title', 'editor', 'thumbnail'),
+        'rewrite'            => array('slug' => 'jobs'),
+    );
+
+    register_post_type('jobs', $args);
+}
+add_action('init', 'create_jobs_post_type');
+
+// Add Custom Meta Boxes
+function jobs_custom_meta_boxes() {
+    add_meta_box(
+        'job_details',
+        'Job Details',
+        'render_job_details_meta_box',
+        'jobs',
+        'normal',
+        'high'
+    );
+}
+add_action('add_meta_boxes', 'jobs_custom_meta_boxes');
+
+// Render Meta Box
+function render_job_details_meta_box($post) {
+    wp_nonce_field('job_details_nonce', 'job_details_nonce');
+    
+    $job_title = get_post_meta($post->ID, '_job_title', true);
+    $salary = get_post_meta($post->ID, '_salary', true);
+    $location = get_post_meta($post->ID, '_location', true);
+    ?>
+    <p>
+        <label for="job_title"><strong>Job Title:</strong></label><br>
+        <input type="text" id="job_title" name="job_title" value="<?php echo esc_attr($job_title); ?>" style="width:100%;">
+    </p>
+    <p>
+        <label for="salary"><strong>Salary:</strong></label><br>
+        <input type="text" id="salary" name="salary" value="<?php echo esc_attr($salary); ?>" style="width:100%;">
+    </p>
+    <p>
+        <label for="location"><strong>Location:</strong></label><br>
+        <input type="text" id="location" name="location" value="<?php echo esc_attr($location); ?>" style="width:100%;">
+    </p>
+    <?php
+}
+
+// Save Meta Box Data
+function save_job_details($post_id) {
+    if (!isset($_POST['job_details_nonce']) || !wp_verify_nonce($_POST['job_details_nonce'], 'job_details_nonce')) return;
+    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
+    if (!current_user_can('edit_post', $post_id)) return;
+
+    if (isset($_POST['job_title'])) update_post_meta($post_id, '_job_title', sanitize_text_field($_POST['job_title']));
+    if (isset($_POST['salary'])) update_post_meta($post_id, '_salary', sanitize_text_field($_POST['salary']));
+    if (isset($_POST['location'])) update_post_meta($post_id, '_location', sanitize_text_field($_POST['location']));
+}
+add_action('save_post_jobs', 'save_job_details');
